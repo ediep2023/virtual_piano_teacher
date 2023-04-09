@@ -202,6 +202,14 @@ JINGLE_3_DICT = {
 
 class SoundSet(Dataset):
     def __init__(self, audio_file, transformation, target_sample_rate, num_samples, device):
+        '''
+        :param audio_file: input audio
+        :param transformation: function to transform audio into mel spectrogram
+        :param target_sample_rate: number of samples * time
+        :param num_samples: sample count
+        :param device: CPU
+        :method: initalize SoundDataset with input value
+        '''
         self.audio_file = audio_file
         self.device = device
         self.transformation = transformation.to(self.device)
@@ -209,9 +217,17 @@ class SoundSet(Dataset):
         self.num_samples = num_samples
 
     def __len__(self):
+        '''
+        :return: 1 test sample every time model is tested
+        '''
         return 1
 
     def __getitem__(self, index):
+        '''
+        :param index: a note's index within a song
+        :method: adjust indesed chopped audio to one second and transform into mel spectorgram
+        :return: digital signal of the indexed chopped audio, and its 10 corresponding labels.
+        '''
         signal, sr = torchaudio.load(self.audio_file)
         signal = signal.to(self.device)
         signal = self._cut_if_necessary(signal)
@@ -220,11 +236,21 @@ class SoundSet(Dataset):
         return signal
 
     def _cut_if_necessary(self, signal):
+        '''
+        :param signal: chopped up note audio
+        :method: trim note audio if greater than one second
+        :return: adjusted signal
+        '''
         if signal.shape[1] > self.num_samples:
             signal = signal[:, :self.num_samples]
         return signal
 
     def _right_pad_if_necessary(self, signal):
+        '''
+        :param signal: chopped up note audio
+        :method: padding 0s to audio if less than one second
+        :return: adjusted signal
+        '''
         length_signal = signal.shape[1]
         if length_signal < self.num_samples:
             num_missing_samples = self.num_samples - length_signal
@@ -233,9 +259,23 @@ class SoundSet(Dataset):
         return signal
 
 def create_data_loader(dataset, batch_size, shuffle):
+    '''
+    :param dataset: dataset input
+    :param batch_size: number of samples in a batch
+    :param shuffle: shuffle samples
+    :method: create data loader
+    :return: data loader
+    '''
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
 def test_model(test_dl, model, device):
+    '''
+    :param test_dl: test data loader
+    :param model: CNN model
+    :param device: CPU
+    :method: Use CNN model
+    :return: 10 prediction labels
+    '''
     all_labels = []
     for i, (data) in enumerate(test_dl):
         ## Forward Pass
@@ -250,6 +290,11 @@ def test_model(test_dl, model, device):
     return all_labels
 
 def get_onset_time(full_filename):
+    '''
+    :param full_filename:
+    :method: get the onset time of the student's preprocessed audio
+    :return: onset times, tempo, sample rate, audio duration, preprocessed audio
+    '''
     rate, data = wavfile.read(full_filename)
     # perform noise reduction
     reduced_noise = nr.reduce_noise(y=data, sr=rate)
@@ -270,6 +315,13 @@ def get_onset_time(full_filename):
     return o_env, times[onset_bt], tempo, sr, aud_duration, new_full_filename
 
 def write_onset_file(output_file, onset_times, aud_duration):
+    '''
+    :param output_file: new_full_filename
+    :param onset_times: each note's onset times
+    :param aud_duration: duration of input audio
+    :method: create dictionary of each onset times
+    :return: dictionary of onset times
+    '''
     timing_dict = {}
     f = open(output_file, 'w')
     for i in range(len(onset_times)-1):
@@ -289,6 +341,14 @@ def write_onset_file(output_file, onset_times, aud_duration):
 
 
 def get_audio(input_audio, output_file, onset_time, offset_time):
+    '''
+    :param input_audio: noise reduced and trimmed audio
+    :param output_file: full output path of chopped audio files
+    :param onset_time: detected onset time
+    :param offset_time: assumed offset time
+    :method: chops preprocessed audio by onset time into singular note files
+    :return: chopped up audio files in full directory
+    '''
     onset_time = onset_time * 1000 #Works in milliseconds
     offset_time = offset_time * 1000
 
@@ -301,6 +361,13 @@ def get_audio(input_audio, output_file, onset_time, offset_time):
     return new_audio
 
 def generate_audios(input_file, timing_file, output_folderpath, wav_id):
+    '''
+    :param input_file: student audio
+    :param timing_file: file with each note onset
+    :param output_folderpath: output folder
+    :param wav_id: note index
+    :method: generate chopped up wav audio of student audio
+    '''
     input_audio = AudioSegment.from_file(input_file)
     audio_len = input_audio.duration_seconds
 
@@ -328,6 +395,11 @@ def generate_audios(input_file, timing_file, output_folderpath, wav_id):
         get_audio(input_audio, output_file, onset, offset)
 
 def get_ref_sequence(filename):
+    '''
+    :param filename: input audio filename
+    :method: look for note dict ref list based on song
+    :return: sequence list
+    '''
     seq_list=[]
     if "Minuet" in filename:
         for i in range(len(REF_DICT)):
@@ -370,6 +442,12 @@ def get_ref_sequence(filename):
     return seq_list
 
 def get_predicted_sequence(output_filename):
+    '''
+    :param output_filename: the full path of prediction file
+    :                       - first column=.wav filename, second column=note index, third column=midi number
+    :method: read prediction file and search NOTE_DICT to convert midi to note name
+    :return: list of the predicted note names according to the note index
+    '''
     f = open(output_filename, 'r')
     lines = f.readlines()
     f.close()
@@ -398,12 +476,24 @@ def get_predicted_sequence(output_filename):
     return seq_list
 
 def score(ref, test):
+    '''
+    :param ref: reference notes
+    :param test: predicted notes
+    :method: define scoring system: returns +1 for match,
+    '''
     if ref==test:
         return 1
     else:
         return -1
 
 def align(ref_list, test_list, gap_penalty):
+    '''
+    :param ref_list: reference notes list
+    :param test_list: predicted notes list
+    :param gap_penalty: penalty when gap
+    :method: Needleman-Wunsch alignment algorithm - build scoring matrix and tracks optimal alignment in pointer matrix
+    :return: scoring matrix and pointer matrix
+    '''
     #init matrix
     score_matrix = []
     for j in range(len(test_list) + 1):
@@ -435,6 +525,14 @@ def align(ref_list, test_list, gap_penalty):
     return score_matrix, pointer_matrix
 
 def get_alignment(test_list, ref_list, score_matrix, pointer_matrix):
+    '''
+    :param test_list: predicted notes list
+    :param ref_list: expected notes list
+    :param score_matrix: stores scoring system
+    :param pointer_matrix: stores optimal alignment for all the scores in the scoring matrix
+    :method: backtracking using pointer matrix to find optimal alignment
+    :return: alignment of predicted and expected notes in string seperated by space
+    '''
     align1 = ""
     align2 = ""
     r = len(test_list)
@@ -485,6 +583,12 @@ def get_alignment(test_list, ref_list, score_matrix, pointer_matrix):
     return align1, align2
 
 def print_alignment(align1, align2, output_file):
+    '''
+    :param align1: reference alignment
+    :param align2: predicted alignment
+    :param output_file: alignment output file
+    :method: write alignment file with a maximum of 40 character per line
+    '''
     f = open(output_file, "w")
     total_len = len(align1)
     iterations = math.floor(total_len / 40)
@@ -495,6 +599,11 @@ def print_alignment(align1, align2, output_file):
     f.close()
 
 def calc_expected_note_duration(tempo):
+    '''
+    :param tempo: song tempo
+    :method: create dictionary of expected note duration
+    :return: expected note dictionary
+    '''
     expected_duration_dict = {
         "quarter": 0,
         "eighth": 0,
@@ -511,6 +620,13 @@ def calc_expected_note_duration(tempo):
     return expected_duration_dict
 
 def calc_note_type(idx, prediction_dict, expected_duration_dict):
+    '''
+    :param idx: note number
+    :param prediction_dict: note duration prediction
+    :param expected_duration_dict: expected note duration
+    :method: calculate note duration of note within 100 milliseconds of expected note duration
+    :return: predicted note duration
+    '''
     note_type = None
     color = "black"
     comment = ''
@@ -541,6 +657,12 @@ def calc_note_type(idx, prediction_dict, expected_duration_dict):
     return note_type, color, comment
 
 def calc_note_type_for_predictions(prediction_dict, expected_duration_dict):
+    '''
+    :param prediction_dict: dictionary with note index, onset, offset, and midi number
+    :param expected_duration_dict: expected note duration
+    :method: adds note duration, color and comment to prediction_dict
+    :return: prediction dictionary
+    '''
     for i in range(len(prediction_dict)):
         print(i)
         note_type, color, comment = calc_note_type(i+1, prediction_dict, expected_duration_dict)
@@ -551,6 +673,12 @@ def calc_note_type_for_predictions(prediction_dict, expected_duration_dict):
     return prediction_dict
 
 def write_prediction_dict(prediction_dict, output_file):
+    '''
+    :param prediction_dict: predicted  onset, midi, note duration, color, comment
+    :param output_file: music 21 text file
+    :method: write music21 text file
+    :return: music 21 text file
+    '''
     f = open(output_file, 'w')
     for i in range(len(prediction_dict)):
         onset = prediction_dict[i+1]['onset']
@@ -564,6 +692,13 @@ def write_prediction_dict(prediction_dict, output_file):
     f.close()
 
 def create_color_note(align1_str, align2_str, prediction_dict):
+    '''
+    :param align1_str: reference string
+    :param align2_str: predicted string
+    :param prediction_dict: prediction dictionary of predicted  onset, midi, note duration, color, comment
+    :method: color notes based on note error - red=wrong note, blue=extra note, orange=wrong duration, text=missing note
+    :return: prediction dictionary
+    '''
     cur_prediction_dict_idx = 1
     align1 = align1_str.strip().split(' ')
     align2 = align2_str.strip().split(' ')
@@ -598,6 +733,9 @@ def create_color_note(align1_str, align2_str, prediction_dict):
     return prediction_dict
 
 def get_distance_list(x):
+    '''
+    : DEPRECATED
+    '''
     dist_list = []
     for i in range(len(x)-1):
         dist = abs(x[i]-x[i+1])
@@ -605,6 +743,9 @@ def get_distance_list(x):
     return dist_list
 
 def get_percent_above_noise(x):
+    '''
+        : DEPRECATED
+    '''
     noise_threshold = 0.00030
     count = 1
     for i in range(len(x)):
@@ -614,6 +755,9 @@ def get_percent_above_noise(x):
     return percent
 
 def get_articulation(x):
+    '''
+    : DEPRECATED
+    '''
     articulation = ""
     legato_threshold = 0.00030
     dist_list = get_distance_list(x)
@@ -628,14 +772,18 @@ def get_articulation(x):
     return articulation, med, percent
 
 def wav2score():
+    '''
+    :method: convert audio into music score with corrected errors
+    '''
     device = "cpu"
-    # instantiating our dataset object and create data loader
+    # setup melspectrogram
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(sample_rate=SAMPLE_RATE, n_fft=1024, hop_length=256, n_mels=128)
 
     wavfiles = os.listdir(ORIGINAL_WAV_FOLDER)
     wav_id = 1
     duration_result_dict = {}
     for wfile in wavfiles:
+        #preprocess audio
         if wfile.endswith('.wav') and (not ("noise_filtered" in wfile)):
             full_filename  = os.path.join(ORIGINAL_WAV_FOLDER, wfile)
             #ONSET DETECTION
@@ -764,8 +912,9 @@ def wav2score():
             print("DURATION TEST RESULT: ", total_duration_tested, total_duration_tested_correct)
             duration_result_dict[wfile[:-4]] = {'total': total_duration_tested, 'correct': total_duration_tested_correct}
             write_prediction_dict(prediction_dict, os.path.join(PREDICTION_FOLDER, wfile[:-4]+"_music21.txt"))
-            #MUSIC SCORE
 
+
+    # write duration accuracy of each song within a dataset
     duration_result_fh = open(os.path.join(PREDICTION_FOLDER, "duration_result_summary.txt"), 'w')
     for mykey in duration_result_dict.keys():
         duration_result_fh.write('%s\t%d\t%s\n'%(mykey, duration_result_dict[mykey]['total'], duration_result_dict[mykey]['correct']))

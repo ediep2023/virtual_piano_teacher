@@ -39,6 +39,14 @@ CLASS2MIDI_DICT = {
  }
 
 def write_csv(mydict, csv_file):
+    '''
+    :param mydict: my_dict where the key is a wav filename and the value contains class ID - string of 10 items
+    :              seperated by comma
+    :param csv_file: the name of the output file
+    :method: generate a csv file with header where a row means a note in a song and 11 columns - first column is the
+    :        wavfile name, and the rest are MIDI labels in CNN classification;
+    :        0 means a MIDI is not played, and 1 means a MIDI is played
+    '''
     header = 'wavfile,label1,label2,label3,label4,label5,label6,label7,label8,label9,label10\n'
     f = open(csv_file, 'w')
     f.write(header)
@@ -47,22 +55,37 @@ def write_csv(mydict, csv_file):
     f.close()
 
 def make_data_label_dict(folder):
+    '''
+    :param folder: directory of train or valid dataset
+    :return: my_dict where the key is a wav filename and the value contains class ID - string of 10 items seperated by comma
+    :method: for every wav file in the input folder, spilt each filename by '-' to find MIDI value.
+    :        If MIDI value is chord, make a string of ten items where each item is either 0 or 1. This string is a note's class ID.
+    :        Otherwise, search class ID in CLASS_DICT using MIDI value
+
+    '''
     mydict = {}
+    # for each .wav file in the input folder
     for wavfile in os.listdir(folder):
         filename_items = wavfile.split('-')
         note_class = filename_items[-2]
         midi = CLASS2MIDI_DICT[int(note_class)]
         classID = None
+        # if midi is a chord
         if ',' in midi:
+            # initialize the class ID
             midi_list = midi.split(',')
             label = '0,0,0,0,0,0,0,0,0,0'
             prev_label_list = label.split(',')
+            # for every note in chord
             for i in midi_list:
+                #find the class ID for each note
                 my_midi = int(i)
                 cur_label = CLASS_DICT[my_midi]
                 cur_label_list = cur_label.split(',')
                 merged_list = []
+                # for every label in the class ID
                 for j in range(len(cur_label_list)):
+                    # merge labels for chord class ID
                     if cur_label_list[j]=='0' and prev_label_list[j]=='0':
                         merged_list.append('0')
                     else:

@@ -4,6 +4,13 @@ import os
 
 
 def generate_music_sheet(folder, title, summary, time_signature = '4/4'):
+    '''
+    :param folder: folder with student audio
+    :param title: title of song
+    :param summary: composer and note information
+    :param time_signature: set time signature (default value = 4/4)
+    :method: make music21 score using music21 text file (filename_path)
+    '''
     filename_list=os.listdir(folder)
     for filename in filename_list:
         if filename.endswith('music21.txt'):
@@ -12,6 +19,14 @@ def generate_music_sheet(folder, title, summary, time_signature = '4/4'):
 
 
 def make_musicscore(filename, title, summary, time_signature):
+    '''
+    :param filename: name of music21 text file with full directory
+    :param title: create title for music score
+    :param summary: composer and note information
+    :param time_signature: sets up time signature of music score
+    :method: read music21 text file and load music notes on music score - one row at a time. saves music score as pdf
+    :return: shows pdf on screen
+    '''
     f = open(filename, 'r')
     lines = f.readlines()
     f.close()

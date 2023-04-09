@@ -16,6 +16,9 @@ from music21_vis import generate_music_sheet as generate_music_sheet
 
 class MusicLesson(App):
     def build(self):
+        '''
+        :method: Virtual Piano Teacher UI
+        '''
         self.window = GridLayout()
         self.window.cols = 1
         self.window = GridLayout()
@@ -44,6 +47,10 @@ class MusicLesson(App):
         return self.window
 
     def analysis_callback(self, instance):
+        '''
+        :param instance: Button object
+        :method: generate music score
+        '''
         wav2score()
         JINGLE1_PREDICTION_FOLDER = '/home/parallels/PycharmProjects/VirtualPianoTeacher2023/data/StudentMultiLabelPrediction'
         title = "Jingle 1"
@@ -51,6 +58,13 @@ class MusicLesson(App):
         generate_music_sheet(JINGLE1_PREDICTION_FOLDER, title, summary)
 
     def recorder_callback(self, instance):
+        '''
+        :param instance: Button object
+        :method: record audio from user for 6 seconds and saved it as a wav file in a directory. One
+        :        number is being recorded for every sample because there is only one channel. The total number of data chunks = frames per second/ chunk size * numbers of seconds
+        :        these chunks are stored and written out onto a file.
+        :        Hardcoded to save audio as JingleOne_demo.wav
+        '''
         filename = "/home/parallels/PycharmProjects/VirtualPianoTeacher2023/data/JingleOne_demo.wav"
         chunk = 1024  # Record in chunks of 1024 samples
         sample_format = pyaudio.paInt16  # 16 bits per sample

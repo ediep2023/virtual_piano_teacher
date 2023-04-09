@@ -32,6 +32,11 @@ CLASS_DICT = {
 }
 
 def get_onset_time(full_filename):
+    '''
+    :param full_filename: full directory of original audio
+    :method: reduce noise and trim original audio file to find note onset
+    :return: onset times, new audio duration, preprocessed audio filename
+    '''
     rate, data = wavfile.read(full_filename)
     # perform noise reduction
     reduced_noise = nr.reduce_noise(y=data, sr=rate)
@@ -51,6 +56,13 @@ def get_onset_time(full_filename):
 
 
 def write_onset_file(output_file, onset_times, aud_duration):
+    '''
+    :param output_file: full directory for output file
+    :param onset_times: a list of onset times
+    :param aud_duration: audio duration
+    :method: create a text file (output_file) with each note's onset time. assumes no note overlaps where offset time
+    :        is 10 milliseconds before next onset.
+    '''
     f = open(output_file, 'w')
     for i in range(len(onset_times)-1):
         onset_time = round(float(onset_times[i]), 2)
@@ -65,6 +77,14 @@ def write_onset_file(output_file, onset_times, aud_duration):
     f.close()
 
 def get_audio(input_audio, output_file, onset_time, offset_time):
+    '''
+    :param input_audio: noise reduced and trimmed audio
+    :param output_file: full output path of chopped audio files
+    :param onset_time: detected onset time
+    :param offset_time: assumed offset time
+    :method: chops preprocessed audio by onset time into singular note files
+    :return: chopped up audio files in full directory
+    '''
     print(input_audio, onset_time, offset_time)
     onset_time = onset_time * 1000 #Works in milliseconds
     offset_time = offset_time * 1000
@@ -78,6 +98,11 @@ def get_audio(input_audio, output_file, onset_time, offset_time):
     return new_audio
 
 def read_ref_file(txt_file):
+    '''
+    :param txt_file: an input txt file containing each note's midi within a song
+    :method: reads input file to identify the MIDIs of a given song in sequencial order
+    :return: midi list
+    '''
     f = open(txt_file,'r')
     lines = f.readlines()
     f.close()
@@ -88,6 +113,11 @@ def read_ref_file(txt_file):
     return midi_list
 
 def read_ref_txt(wfile):
+    '''
+    :param wfile: wavfile
+    :method: search for specific ref midi text file based on the filename of the wavfile
+    :return: midi list of wfile
+    '''
     JINGLE_ONE_REF_FILE='/home/parallels/PycharmProjects/PianoModelBuilder/data/Minuet/ScienceFair2023/NoiseFiltered/MIDI/JingleOne.txt'
     JINGLE_TWO_REF_FILE='/home/parallels/PycharmProjects/PianoModelBuilder/data/Minuet/ScienceFair2023/NoiseFiltered/MIDI/JingleTwo.txt'
     JINGLE_THREE_REF_FILE = '/home/parallels/PycharmProjects/PianoModelBuilder/data/Minuet/ScienceFair2023/NoiseFiltered/MIDI/JingleThree.txt'
@@ -104,6 +134,12 @@ def read_ref_txt(wfile):
     return midilist
 
 def generate_audios(input_file, output_folderpath):
+    '''
+    :param input_file: preprocessed audio
+    :param output_folderpath: full directory of chopped up wav files
+    :method: reads onset ref file and loads original audio. splits ref file to create dictionary where key = note number
+    :        and value is dicationary containing key value pairs of onset, offset, label, and midi.
+    '''
     input_audio = AudioSegment.from_file(input_file)
     audio_len = input_audio.duration_seconds
     ref_file = input_file[:-4] + ".txt"
@@ -139,6 +175,9 @@ def generate_audios(input_file, output_folderpath):
         get_audio(input_audio, output_file, onset, offset)
 
 if __name__ == '__main__':
+    '''
+    lists full file directory for wavfiles. puts chopped up files into train folder (input_folder) and valid folder (input_folder2)
+    '''
 
     input_folder = "/home/parallels/PycharmProjects/PianoModelBuilder/data/Minuet/ScienceFair2023/NoiseFiltered/Minuet/ReferenceAudio"
     output_folder = "/home/parallels/PycharmProjects/PianoModelBuilder/data/Minuet/ScienceFair2023/NoiseFiltered/Minuet/train"

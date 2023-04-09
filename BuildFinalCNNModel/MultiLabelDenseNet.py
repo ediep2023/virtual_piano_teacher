@@ -11,6 +11,15 @@ from torch.utils.data.dataloader import DataLoader
 
 class SoundDataset(Dataset):
     def __init__(self, annotation_file, audio_dir, transformation, target_sample_rate, num_samples, device):
+        '''
+        :param annotation_file: csv file
+        :param audio_dir: directory of train and valid audio
+        :param transformation: function to transform audio into mel spectrogram
+        :param target_sample_rate: number of samples * time
+        :param num_samples: sample count
+        :param device: CPU
+        :method: initalize SoundDataset with input value
+        '''
         self.annotations = pd.read_csv(annotation_file)
         self.audio_dir = audio_dir
         self.device = device
@@ -19,9 +28,17 @@ class SoundDataset(Dataset):
         self.num_samples = num_samples
 
     def __len__(self):
+        '''
+        :return: total number of notes
+        '''
         return len(self.annotations)
 
     def __getitem__(self, index):
+        '''
+        :param index: a note's index within a song
+        :method: adjust indesed chopped audio to one second and transform into mel spectorgram
+        :return: digital signal of the indexed chopped audio, and its 10 corresponding labels.
+        '''
         audio_sample_path = self._get_audio_sample_path(index)
         labels = self._get_audio_sample_label(index)
         signal, sr = torchaudio.load(audio_sample_path)
@@ -54,11 +71,21 @@ class SoundDataset(Dataset):
         }
 
     def _cut_if_necessary(self, signal):
+        '''
+        :param signal: chopped up note audio
+        :method: trim note audio if greater than one second
+        :return: adjusted signal
+        '''
         if signal.shape[1] > self.num_samples:
             signal = signal[:, :self.num_samples]
         return signal
 
     def _right_pad_if_necessary(self, signal):
+        '''
+        :param signal: chopped up note audio
+        :method: padding 0s to audio if less than one second
+        :return: adjusted signal
+        '''
         length_signal = signal.shape[1]
         if length_signal < self.num_samples:
             num_missing_samples = self.num_samples - length_signal
@@ -67,14 +94,28 @@ class SoundDataset(Dataset):
         return signal
 
     def _get_audio_sample_path(self, index):
+        '''
+        :param index: a note's index within a song
+        :method: finds chopped wav file name under csv file
+        :return: full path of the chopped audio file
+        '''
         path = os.path.join(self.audio_dir, self.annotations.iloc[index, 0])
         return path
 
     def _get_audio_sample_label(self, index):
+        '''
+        :param index: a note's index within a song
+        :method: finds csv file for columns 2 to 11 depending on note number
+        :return: note labels
+        '''
         return self.annotations.iloc[index, 1:11]
 
 class Dense_Block(nn.Module):
     def __init__(self, in_channels):
+        '''
+        :param in_channels: input features
+        :method: defines the building blocks for Dense Block
+        '''
         super(Dense_Block, self).__init__()
 
         self.relu = nn.ReLU(inplace=True)
@@ -84,6 +125,13 @@ class Dense_Block(nn.Module):
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, stride=1, padding=1)
 
     def forward(self, x):
+        '''
+        :param x: signal
+        :method: apply batch normalization->convolution->ReLU->feature1
+        :        feature1->convolution->RELU->feature2
+        :        combine feature1 and feature2 -> dense block
+        :return: completed dense block
+        '''
         bn = self.bn(x)
         conv1 = self.relu(self.conv1(bn))
 
@@ -95,6 +143,11 @@ class Dense_Block(nn.Module):
 
 class Transition_Layer(nn.Module):
     def __init__(self, in_channels, out_channels):
+        '''
+        :param in_channels: input features
+        :param out_channels: output features
+        :method: defines building blocks for transition layer
+        '''
         super(Transition_Layer, self).__init__()
         self.relu = nn.ReLU(inplace = True)
         self.bn = nn.BatchNorm2d(num_features = out_channels)
@@ -102,12 +155,22 @@ class Transition_Layer(nn.Module):
         self.avg_pool = nn.AvgPool2d(kernel_size = 2, stride = 2, padding = 0)
 
     def forward(self, x):
+        '''
+        :param x: signal
+        :method: signal->convolution->ReLU->batch normalization->average pooling->output of transition layer
+        :return: output of transition layer
+        '''
         bn = self.bn(self.relu(self.conv(x)))
         out = self.avg_pool(bn)
         return out
 
 class DenseNet(nn.Module):
     def __init__(self, nr_classes):
+        '''
+        :param nr_classes: 10 notes that can be classified
+        :method: 16 layers: 1 lowconv layer, 1 ReLU layer, 1 dense block, 1 transition layer, 1 batch normalization layer, 1 linear layer, 10 classifier layers
+        :        512 outputs are classified into 10 classes
+        '''
         super(DenseNet, self).__init__()
         self.lowconv = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=5, padding=3, bias=False)
         self.relu = nn.ReLU()
@@ -134,16 +197,36 @@ class DenseNet(nn.Module):
         self.out10 = nn.Linear(512, 1)
 
     def _make_dense_block(self, block, in_channels):
+        '''
+        :param block: Dense_Block class
+        :param in_channels: input features
+        :method: create dense block
+        :return: dense block
+        '''
         layers = []
         layers.append(block(in_channels))
         return nn.Sequential(*layers)
 
     def _make_transition_layer(self, layer, in_channels, out_channels):
+        '''
+        :param layer: layers list
+        :param in_channels: input features
+        :param out_channels: output feathers
+        :method: create transition layer
+        :return: transition layer
+        '''
         modules = []
         modules.append(layer(in_channels, out_channels))
         return nn.Sequential(*modules)
 
     def forward(self, x):
+        '''
+        :param x: signal
+        :method: signal-> lowconv-> ReLU-> dense block-> transition layer-> batch normalization-> flatten->
+        :        fully connected linear layer-> hidden (512 nodes)-> output layer (10 notes)-> sigmoidal function (per
+        :        output)-> prediction for all 10 labels
+        :return: note prediction
+        '''
         out = self.relu(self.lowconv(x))
 
         out = self.denseblock1(out)

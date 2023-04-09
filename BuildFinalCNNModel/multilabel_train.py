@@ -20,6 +20,11 @@ from torchsummary import summary
 from MultiLabelDenseNet import DenseNet as CNNNetwork
 
 def transpose_list(src):
+    '''
+    :param src: a list
+    :method: turns each item in dst list into torch.Tensor object
+    :return: Tensor object dst (list)
+    '''
     dst=[]
     for i in range(len(src)):
         x=src[i]
@@ -27,6 +32,12 @@ def transpose_list(src):
     return torch.Tensor(dst)
 
 def loss_fn(outputs, targets):
+    '''
+    :param outputs: a list of ten predicted output labels
+    :param targets: a list of ten expected output labels
+    :method: calculate average error loss
+    :return: average error loss
+    '''
     o1, o2, o3, o4, o5, o6, o7, o8, o9, o10 = outputs
     target1, target2, target3, target4, target5, target6, target7, target8, target9, target10 = targets
     t1 = transpose_list(target1)
@@ -54,9 +65,26 @@ def loss_fn(outputs, targets):
     return (l1 + l2 + l3 + l4 + l5 + l6 + l7 + l8 + l9 + l10) / 10
 
 def create_data_loader(dataset, batch_size, shuffle):
+    '''
+    :param dataset: dataset input
+    :param batch_size: number of samples in a batch
+    :param shuffle: shuffle samples
+    :method: create data loader
+    :return: data loader
+    '''
     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
 
 def train(model, dataloader, optimizer, loss_fn, device):
+    '''
+    :param model: CNN Model
+    :param dataloader: data loader object
+    :param optimizer: model tuning
+    :param loss_fn: function that calculates accuracy loss
+    :param device: CPU
+    :method: train and tune model
+    :return: accuracy loss during training
+
+    '''
     model.train()
     counter = 0
     train_running_loss = 0.0
@@ -96,6 +124,15 @@ def train(model, dataloader, optimizer, loss_fn, device):
     return train_loss
 
 def training(train_dl, val_dl, model, learning_rate, epochs, device):
+    '''
+    :param train_dl: input training data loader
+    :param val_dl: input validation data loader
+    :param model: CNN Model
+    :param learning_rate: learning rate
+    :param epochs: number of loops
+    :param device: CPU
+    :method: train & tune model, and test model accuracy with valid dataset over a certain number of epochs
+    '''
     optimizer = optim.Adam(params=model.parameters(), lr=learning_rate)
     model.to(device)
     train_loss = []
@@ -152,6 +189,9 @@ def training(train_dl, val_dl, model, learning_rate, epochs, device):
 
 
 if __name__ == "__main__":
+    '''
+    train model based on batch size, learning rate, and epochs
+    '''
     TRAIN_BATCH_SIZE = 50
     VALID_BATCH_SIZE = 1
     LEARNING_RATE = 0.001

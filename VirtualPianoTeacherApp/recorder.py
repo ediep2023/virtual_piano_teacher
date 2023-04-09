@@ -4,7 +4,15 @@ import time
 import sys
 import os
 
+
 def record_me(filename):
+    '''
+
+    :param filename: name of output audio file
+    :method: record audio from user for 5 seconds and saved it as a wav file in a directory. One
+    :        number is being recorded for every sample because there is only one channel. The total number of data chunks = frames per second/ chunk size * numbers of seconds
+    :        these chunks are stored and written out onto a file.
+    '''
     chunk = 1024  # Record in chunks of 1024 samples
     sample_format = pyaudio.paInt16  # 16 bits per sample
     channels = 1
@@ -23,7 +31,7 @@ def record_me(filename):
 
         frames = []  # Initialize array to store frames
 
-        # Store data in chunks for 3 seconds
+        # Store data in chunks for 5 seconds
         for i in range(0, int(fs / chunk * seconds)):
             data = stream.read(chunk)
             frames.append(data)
